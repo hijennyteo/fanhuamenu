@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>繁華 · 今晚吃什麼</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 50%, #1a0a0a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #d4a574;
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 300;
+            letter-spacing: 0.4em;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 10px rgba(212, 165, 116, 0.3);
+        }
+        
+        .header p {
+            font-size: 1rem;
+            opacity: 0.8;
+            letter-spacing: 0.2em;
+        }
+        
+        .wheel-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 20px 0;
+        }
+        
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            box-shadow: 
+                0 0 0 8px #8b0000,
+                0 0 0 12px #d4a574,
+                0 0 40px rgba(139, 0, 0, 0.5);
+        }
+        
+        .wheel-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            left: 50%;
+            top: 0;
+            transform-origin: 0% 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            clip-path: polygon(0 100%, 100% 0, 0 0);
+        }
+        
+        .segment-content {
+            position: absolute;
+            left: 15%;
+            top: 35%;
+            transform: rotate(22.5deg);
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            max-width: 70px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Pointer */
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 35px solid #d4a574;
+            z-index: 10;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5));
+        }
+        
+        .pointer::after {
+            content: '';
+            position: absolute;
+            top: -32px;
+            left: -12px;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 24px solid #8b0000;
+        }
+        
+        /* Center button */
+        .center-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #8b0000, #5c0000);
+            border: 4px solid #d4a574;
+            color: #d4a574;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            transition: all 0.3s ease;
+            letter-spacing: 0.1em;
+        }
+        
+        .center-btn:hover:not(:disabled) {
+            transform: translate(-50%, -50%) scale(1.05);
+            box-shadow: 0 8px 25px rgba(139, 0, 0, 0.6);
+        }
+        
+        .center-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .center-btn.spinning {
+            animation: pulse 0.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 5px 20px rgba(139, 0, 0, 0.4); }
+            50% { box-shadow: 0 5px 30px rgba(139, 0, 0, 0.8); }
+        }
+        
+        /* Result modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .modal {
+            background: linear-gradient(145deg, #2d1515, #1a0a0a);
+            border: 3px solid #d4a574;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 320px;
+            margin: 20px;
+            animation: popIn 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        @keyframes popIn {
+            from { transform: scale(0.5); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        
+        .modal h2 {
+            color: #d4a574;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            letter-spacing: 0.2em;
+        }
+        
+        .modal .dish-name {
+            color: #fff;
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(212, 165, 116, 0.5);
+        }
+        
+        .modal .discount {
+            background: linear-gradient(135deg, #8b0000, #c41e3a);
+            color: #fff;
+            font-size: 1.8rem;
+            font-weight: bold;
+            padding: 15px 30px;
+            border-radius: 15px;
+            margin: 15px 0;
+            display: inline-block;
+            box-shadow: 0 5px 20px rgba(139, 0, 0, 0.5);
+            animation: bounceIn 0.5s ease 0.3s both;
+        }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .modal .note {
+            color: rgba(212, 165, 116, 0.7);
+            font-size: 0.85rem;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+        
+        .modal .close-btn {
+            background: linear-gradient(135deg, #d4a574, #b8956a);
+            color: #1a0a0a;
+            border: none;
+            padding: 12px 35px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .modal .close-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .rules {
+            background: rgba(212, 165, 116, 0.1);
+            border: 1px solid rgba(212, 165, 116, 0.3);
+            border-radius: 15px;
+            padding: 15px 20px;
+            margin-top: 20px;
+            max-width: 320px;
+        }
+        
+        .rules h3 {
+            color: #d4a574;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            letter-spacing: 0.1em;
+        }
+        
+        .rules ul {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.8rem;
+            line-height: 1.8;
+            padding-left: 20px;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            color: rgba(212, 165, 116, 0.5);
+            font-size: 0.75rem;
+            text-align: center;
+        }
+        
+        /* Confetti */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            z-index: 150;
+            animation: fall 3s linear forwards;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        @media (max-width: 360px) {
+            .wheel-container {
+                width: 280px;
+                height: 280px;
+            }
+            .center-btn {
+                width: 70px;
+                height: 70px;
+                font-size: 0.9rem;
+            }
+            .header h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>繁 華</h1>
+        <p>今晚吃什麼？轉一轉！</p>
+    </div>
+    
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <div class="wheel" id="wheel">
+            <div class="wheel-inner" id="wheelInner"></div>
+        </div>
+        <button class="center-btn" id="spinBtn">開始</button>
+    </div>
+    
+    <div class="rules">
+        <h3>🎯 活動規則</h3>
+        <ul>
+            <li>每桌限轉一次</li>
+            <li>折扣僅限當天堂食使用</li>
+            <li>折扣適用於所抽中的菜品</li>
+            <li>最終解釋權歸繁華所有</li>
+        </ul>
+    </div>
+    
+    <div class="footer">
+        繁華酒館 · 歌廳<br>
+        Fan Hua KL & Penang
+    </div>
+    
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <h2>🎉 恭喜您抽中 🎉</h2>
+            <div class="dish-name" id="resultDish">-</div>
+            <div class="discount" id="resultDiscount">-</div>
+            <p class="note">請向服務員出示此畫面<br>即可享有折扣優惠</p>
+            <button class="close-btn" id="closeModal">好的，謝謝！</button>
+        </div>
+    </div>
+    
+    <script>
+        const dishes = [
+            { name: '辣子雞', discount: '10% OFF', color: '#8b0000' },
+            { name: '乾鍋蝦', discount: '5% OFF', color: '#c41e3a' },
+            { name: '砂鍋飯', discount: '10% OFF', color: '#a52a2a' },
+            { name: '糖醋魚', discount: '5% OFF', color: '#8b0000' },
+            { name: '薑蔥蛙', discount: '10% OFF', color: '#c41e3a' },
+            { name: '黑椒牛', discount: '5% OFF', color: '#a52a2a' },
+            { name: '小炒肉', discount: '10% OFF', color: '#8b0000' },
+            { name: '酸菜魚湯', discount: '5% OFF', color: '#c41e3a' }
+        ];
+        
+        const wheel = document.getElementById('wheel');
+        const wheelInner = document.getElementById('wheelInner');
+        const spinBtn = document.getElementById('spinBtn');
+        const modal = document.getElementById('modal');
+        const resultDish = document.getElementById('resultDish');
+        const resultDiscount = document.getElementById('resultDiscount');
+        const closeModal = document.getElementById('closeModal');
+        
+        let isSpinning = false;
+        let currentRotation = 0;
+        
+        // Create wheel segments
+        function createWheel() {
+            const segmentAngle = 360 / dishes.length;
+            
+            dishes.forEach((dish, i) => {
+                const segment = document.createElement('div');
+                segment.className = 'segment';
+                segment.style.transform = `rotate(${i * segmentAngle}deg) skewY(-${90 - segmentAngle}deg)`;
+                segment.style.background = dish.color;
+                
+                const content = document.createElement('div');
+                content.className = 'segment-content';
+                content.style.transform = `skewY(${90 - segmentAngle}deg) rotate(${segmentAngle/2}deg)`;
+                content.textContent = dish.name;
+                
+                segment.appendChild(content);
+                wheelInner.appendChild(segment);
+            });
+        }
+        
+        function spin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            spinBtn.disabled = true;
+            spinBtn.classList.add('spinning');
+            spinBtn.textContent = '...';
+            
+            // Random result
+            const resultIndex = Math.floor(Math.random() * dishes.length);
+            const segmentAngle = 360 / dishes.length;
+            
+            // Calculate rotation to land on result
+            const extraSpins = 5;
+            const targetAngle = (360 - (resultIndex * segmentAngle + segmentAngle / 2));
+            const totalRotation = currentRotation + (360 * extraSpins) + targetAngle - (currentRotation % 360);
+            
+            currentRotation = totalRotation;
+            wheel.style.transform = `rotate(${totalRotation}deg)`;
+            
+            // Show result after spin
+            setTimeout(() => {
+                isSpinning = false;
+                spinBtn.classList.remove('spinning');
+                spinBtn.textContent = '再轉';
+                spinBtn.disabled = false;
+                
+                showResult(dishes[resultIndex]);
+                createConfetti();
+            }, 4200);
+        }
+        
+        function showResult(dish) {
+            resultDish.textContent = dish.name;
+            resultDiscount.textContent = dish.discount;
+            modal.classList.add('active');
+        }
+        
+        function createConfetti() {
+            const colors = ['#d4a574', '#8b0000', '#c41e3a', '#ffd700', '#fff'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                    confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 4000);
+                }, i * 30);
+            }
+        }
+        
+        // Event listeners
+        spinBtn.addEventListener('click', spin);
+        closeModal.addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        });
+        
+        // Initialize
+        createWheel();
+    </script>
+</body>
+</html>
